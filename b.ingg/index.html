@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Present Quiz - Fun Learning!</title>
+    <link href="https://googleapis.com" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #e0f7fa;
+            --primary-blue: #4fc3f2;
+            --dark-blue: #0288d1;
+            --accent-yellow: #fff176;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            background: var(--white);
+            max-width: 600px;
+            width: 100%;
+            padding: 30px;
+            border-radius: 30px;
+            box-shadow: 0 10px 0px rgba(0,0,0,0.1);
+            border: 4px solid var(--primary-blue);
+        }
+
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            color: var(--dark-blue);
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .hidden { display: none; }
+
+        /* Styling Form & Input */
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1.1rem;
+            transition: transform 0.2s, background 0.3s;
+            box-shadow: 0 5px 0 var(--dark-blue);
+        }
+
+        button:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--dark-blue); }
+
+        /* Question Styling */
+        .question-box { margin-bottom: 25px; padding: 15px; background: #f9f9f9; border-radius: 20px; }
+        .options-grid { display: grid; gap: 10px; margin-top: 10px; }
+        .option-item {
+            background: white;
+            border: 2px solid var(--primary-blue);
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .option-item input { width: auto; margin-right: 10px; }
+
+        /* Leaderboard */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: var(--primary-blue); color: white; border-radius: 10px 10px 0 0; }
+        .rank-1 { background-color: #ffd70033; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📚 Quiz Time!</h1>
+    
+    <!-- Screen 1: Biodata -->
+    <div id="setup-screen">
+        <p style="text-align:center">Halo Pelajar Pintar! Isi namamu dulu ya.</p>
+        <input type="text" id="username" placeholder="Masukkan Nama Lengkap..." required>
+        <input type="text" id="userclass" placeholder="Masukkan Kelas (Misal: 7A)..." required>
+        <button onclick="startQuiz()">Mulai Belajar!</button>
+    </div>
+
+    <!-- Screen 2: Quiz -->
+    <div id="quiz-screen" class="hidden">
+        <form id="quiz-form">
+            <!-- Pilihan Ganda -->
+            <div id="mcq-section"></div>
+            <hr>
+            <!-- Essay -->
+            <div id="essay-section"></div>
+            <button type="button" onclick="submitQuiz()">Kirim Jawaban 🚀</button>
+        </form>
+    </div>
+
+    <!-- Screen 3: Leaderboard -->
+    <div id="leaderboard-screen" class="hidden">
+        <h2 style="text-align:center">🏆 Papan Peringkat</h2>
+        <table id="rank-table">
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th>Nama</th>
+                    <th>Kelas</th>
+                    <th>Total Skor</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+        </table>
+        <br>
+        <button onclick="resetApp()">Kembali ke Awal</button>
+    </div>
+</div>
+
+<script>
+    const mcqQuestions = [
+        { q: "She ___ to school every day.", a: "go", b: "goes", c: "going", d: "gone", ans: "b" },
+        { q: "They ___ football on Sundays.", a: "play", b: "plays", c: "playing", d: "played", ans: "a" },
+        { q: "___ you like chocolate?", a: "Does", b: "Are", c: "Do", d: "Is", ans: "c" },
+        { q: "The sun ___ in the east.", a: "rise", b: "rising", c: "rises", d: "rose", ans: "c" },
+        { q: "We ___ not watch TV in the morning.", a: "do", b: "does", c: "are", d: "is", ans: "a" }
+    ];
+
+    const essayQuestions = [
+        { q: "Change this sentence to Negative: 'He drinks coffee.'", ans: "he does not drink coffee" },
+        { q: "Change this sentence to Interrogative: 'They study English.'", ans: "do they study english" },
+        { q: "Translate to English: 'Saya makan sebuah apel setiap pagi.'", ans: "i eat an apple every morning" },
+        { q: "What is the Simple Present form of 'to be' for 'I'?", ans: "am" },
+        { q: "Add '-s/-es' correctly: 'My cat (sleep) on the sofa.'", ans: "sleeps" }
+    ];
+
+    let currentUser = {};
+
+    function startQuiz() {
+        const name = document.getElementById('username').value.trim();
+        const uclass = document.getElementById('userclass').value.trim();
+        
+        if(!name || !uclass) return alert("Isi biodata dulu ya!");
+
+        // Cek Duplikasi Nama
+        let history = JSON.parse(localStorage.getItem('quiz_history') || "[]");
+        if(history.find(u => u.name.toLowerCase() === name.toLowerCase())) {
+            return alert("Nama ini sudah pernah mengerjakan kuis! Gunakan nama lain.");
+        }
+
+        currentUser = { name, uclass };
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        renderQuestions();
+    }
+
+    function renderQuestions() {
+        let mcqHTML = "<h3>A. Pilihan Ganda (Pilih a, b, c, atau d)</h3>";
+        mcqQuestions.forEach((q, i) => {
+            mcqHTML += `
+                <div class="question-box">
+                    <p>${i+1}. ${q.q}</p>
+                    <div class="options-grid">
+                        ${['a','b','c','d'].map(opt => `
+                            <label class="option-item">
+                                <input type="radio" name="mcq${i}" value="${opt}"> ${opt.toUpperCase()}. ${q[opt]}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>`;
+        });
+        document.getElementById('mcq-section').innerHTML = mcqHTML;
+
+        let essayHTML = "<h3>B. Isian Singkat (Essay)</h3>";
+        essayQuestions.forEach((q, i) => {
+            essayHTML += `
+                <div class="question-box">
+                    <p>${i+1}. ${q.q}</p>
+                    <input type="text" name="essay${i}" placeholder="Jawaban kamu...">
+                </div>`;
+        });
+        document.getElementById('essay-section').innerHTML = essayHTML;
+    }
+
+    function submitQuiz() {
+        let score = 0;
+        const form = document.getElementById('quiz-form');
+        const formData = new FormData(form);
+
+        // Hitung Skor PG (5 poin/soal)
+        mcqQuestions.forEach((q, i) => {
+            if(formData.get(`mcq${i}`) === q.ans) score += 5;
+        });
+
+        // Hitung Skor Essay (15 poin/soal)
+        essayQuestions.forEach((q, i) => {
+            const userAns = formData.get(`essay${i}`).toLowerCase().trim();
+            if(userAns === q.ans) score += 15;
+        });
+
+        // Simpan Data
+        let history = JSON.parse(localStorage.getItem('quiz_history') || "[]");
+        history.push({ ...currentUser, score });
+        localStorage.setItem('quiz_history', JSON.stringify(history));
+
+        showLeaderboard();
+    }
+
+    function showLeaderboard() {
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('leaderboard-screen').classList.remove('hidden');
+
+        let history = JSON.parse(localStorage.getItem('quiz_history') || "[]");
+        // Urutkan berdasarkan skor tertinggi
+        history.sort((a, b) => b.score - a.score);
+
+        const tbody = document.getElementById('leaderboard-body');
+        tbody.innerHTML = history.map((user, index) => `
+            <tr class="${index === 0 ? 'rank-1' : ''}">
+                <td>${index + 1}</td>
+                <td>${user.name}</td>
+                <td>${user.uclass}</td>
+                <td>${user.score}</td>
+            </tr>
+        `).join('');
+    }
+
+    function resetApp() {
+        location.reload();
+    }
+</script>
+
+</body>
+</html>
